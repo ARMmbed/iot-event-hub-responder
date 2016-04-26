@@ -21,7 +21,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>samples.com.microsoft.azure.iot.service.sdk.ServiceClientSample</mainClass>
+                            <mainClass>com.arm.iot.event.hub.responder.IoTEventHubResponder</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
