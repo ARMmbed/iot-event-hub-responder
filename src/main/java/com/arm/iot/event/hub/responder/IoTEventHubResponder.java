@@ -243,6 +243,9 @@ public class IoTEventHubResponder {
         private void processEvent(String message) {
             // parse the message
             Map parsed = this.parseMessage(message);
+            
+            // DEBUG
+            System.out.println("processEvent: Message: " + parsed);
                         
             String verb = (String)parsed.get("verb");
             if (verb != null && verb.equalsIgnoreCase("get") == true) {
