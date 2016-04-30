@@ -39,14 +39,18 @@ public class IoTEventHubResponder {
     private static EventHubClient client;
     private static long now = System.currentTimeMillis();
   
-    // Configuration/Connection Parameters
-    public static final String connectionString = "HostName=DevelopmentHub.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
-    public static final String deviceId = "cc69e7c5-c24f-43cf-8365-8d23bb01c707";
+    // Configuration/Connection Parameters - you need to change these
+    public static final String connectionString = "[Enter your IoTHub OWNER SAS Token here]";
+    public static final String deviceId = "[mbed Connector Endpoint Name goes here]";
+    public static final String policyKey = "[SharedAccessKey part of your OWNER SAS Token goes here... you leave off the SharedAccessKey= though though...]";
+    public static final String namespace = "[Your IoTHub namespace value]";
+    public static final String name = "[Your IoTHub qualified name goes here]";
+    
+    // You should not have to change these... 
     public static final String policyName = "iothubowner";
-    public static final String policyKey = "bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
-    public static final String namespace = "ihsuprodblres008dednamespace";
-    public static final String name = "iothub-ehub-developmen-29279-2e150a3f04";
-    public static final String uri = "/123/0/4567";
+    public static final String counter_resource_uri = "/123/0/4567";
+    public static final String led_resource_uri = "/311/0/5850";
+    public static final String temp_resource_uri = "/303/0/5700";
     
     /** Choose iotHubServiceClientProtocol */
     private static final IotHubServiceClientProtocol protocol = IotHubServiceClientProtocol.AMQPS;
@@ -96,6 +100,7 @@ public class IoTEventHubResponder {
         System.out.println("********* Successfully closed FeedbackReceiver.");
     }
    
+    // Message Receiver
     private static class MessageReceiver implements Runnable {
 
         public volatile boolean stopThread = false;
@@ -118,6 +123,7 @@ public class IoTEventHubResponder {
             this.m_json_parser = this.m_json_factory.newJsonParser();
         }
         
+        // parse the JSON string
         private Map parseMessage(String json) {
             return this.m_json_parser.parseJson(json);
         }
@@ -125,12 +131,12 @@ public class IoTEventHubResponder {
         // send CoAP GET request for temperature
         private void dispatchTemperatureGET() {
             try {
-                // GET Temperature
-                String commandMessage = "{ \"path\":\"/303/0/5700\", \"ep\":\"cc69e7c5-c24f-43cf-8365-8d23bb01c707\", \"coap_verb\": \"get\" }";
-
                 // CoAP GET requested
                 HashMap<String,String> messageProperties = new HashMap<>();
                 messageProperties.put("coap_verb", "get");
+                
+                // GET Temperature JSON message for the bridge
+                String commandMessage = "{ \"path\":\"" + temp_resource_uri + "\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
 
                 // create the message to send to the device
                 Message messageToSend = new Message(commandMessage);
@@ -170,11 +176,15 @@ public class IoTEventHubResponder {
 
             // Get the path... if it is the monotonic counter resource, we will process it... 
             String path = (String)observation.get("path");
-            if (path != null && path.contentEquals(IoTEventHubResponder.uri) == true) {
+            if (path != null && path.contentEquals(IoTEventHubResponder.counter_resource_uri) == true) {
                 try {
                     // get the monotonic counter value
                     String value = (String)observation.get("value");
                     Integer counter = Integer.parseInt(value) ;
+
+                    // CoAP put() verb will be used
+                    HashMap<String,String> messageProperties = new HashMap<>();
+                    messageProperties.put("coap_verb", "put");
 
                     // if the counter is even, turn LED ON... otherwise, turn LED OFF.. we can set the CoAP verb in the JSON itself...
                     String commandMessage = null;
@@ -183,22 +193,18 @@ public class IoTEventHubResponder {
                         System.out.println("processObservation: Turning LED ON");
 
                         // turn ON
-                        commandMessage = "{ \"path\":\"/311/0/5850\", \"new_value\":\"1\", \"ep\":\"cc69e7c5-c24f-43cf-8365-8d23bb01c707\", \"coap_verb\": \"put\" }";
+                        commandMessage = "{ \"path\":\"" + led_resource_uri + "\", \"new_value\":\"1\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
                      }
                     else {
                         // DEBUG
                         System.out.println("processObservation: Turning LED OFF");
 
                         // turn OFF
-                        commandMessage = "{ \"path\":\"/311/0/5850\", \"new_value\":\"0\", \"ep\":\"cc69e7c5-c24f-43cf-8365-8d23bb01c707\", \"coap_verb\": \"put\" }";
+                        commandMessage = "{ \"path\":\"" + led_resource_uri + "\", \"new_value\":\"0\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
 
-                        // we will issue a GET on the temperature
+                        // we will issue a GET on the temperature directly (simply as an example of issuing a get())
                         do_get = true;
                     }
-
-                    // we can also set the CoAP verb as a message property
-                    HashMap<String,String> messageProperties = new HashMap<>();
-                    messageProperties.put("coap_verb", "put");
 
                     // DEBUG
                     System.out.println("processObservation: Message Properties: " + messageProperties);
@@ -295,7 +301,7 @@ public class IoTEventHubResponder {
             System.out.println("Exception: " + e.getMessage());
         }
         
-        System.out.println("Starting IoTEventHubResponder. Listening for Device: " + IoTEventHubResponder.deviceId + " Resource URI: " + IoTEventHubResponder.uri);
+        System.out.println("Starting IoTEventHubResponder. Listening for Device: " + IoTEventHubResponder.deviceId + " Resource URI: " + IoTEventHubResponder.counter_resource_uri);
 
         IoTEventHubResponder.openServiceClient();
         IoTEventHubResponder.openFeedbackReceiver();
