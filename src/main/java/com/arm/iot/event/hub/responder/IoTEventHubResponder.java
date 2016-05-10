@@ -346,7 +346,7 @@ public class IoTEventHubResponder {
                 EventHubReceiver receiver = client.getConsumerGroup(null).createReceiver(partitionId, new EventHubEnqueueTimeFilter(now), Constants.DefaultAmqpCredits);
                 System.out.println("** Created receiver on partition " + partitionId);
                 while (!stopThread) {
-                    EventHubMessage message = EventHubMessage.parseAmqpMessage(receiver.receive(5000));
+                    EventHubMessage message = EventHubMessage.parseAmqpMessage(receiver.receive(500));
                     if (message != null) {
                         // DEBUG
                         System.out.println("Received: " + partitionId + " (" + message.getOffset() + " | "
