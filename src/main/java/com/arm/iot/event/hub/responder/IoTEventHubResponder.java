@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * This application processes input telemetry from the mbed-ethernet-sample project (monotonic counter resource) and sends a message back to 
@@ -367,6 +368,9 @@ public class IoTEventHubResponder {
 
     // main method()
     public static void main(String[] args) throws IOException, URISyntaxException, Exception {
+        // enable PEMReader() from BouncyCastle
+        java.security.Security.addProvider(new BouncyCastleProvider());
+        
         try {
             ConnectionStringBuilder csb = new ConnectionStringBuilder(IoTEventHubResponder.policyName, IoTEventHubResponder.policyKey, IoTEventHubResponder.namespace);
             IoTEventHubResponder.client = EventHubClient.create(csb.getConnectionString(), IoTEventHubResponder.name);
