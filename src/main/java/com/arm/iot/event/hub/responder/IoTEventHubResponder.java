@@ -53,6 +53,9 @@ public class IoTEventHubResponder {
     public static final String led_resource_uri = "/311/0/5850";
     public static final String temp_resource_uri = "/303/0/5700";
     
+    // sleep time between receives (MS)
+    public static final int receiveSleepMS = 1000;      // 1 second
+    
     /** Choose iotHubServiceClientProtocol */
     private static final IotHubServiceClientProtocol protocol = IotHubServiceClientProtocol.AMQPS;
 
@@ -124,42 +127,6 @@ public class IoTEventHubResponder {
             this.m_json_parser = this.m_json_factory.newJsonParser();
         }
         
-        // parse the JSON string
-        private Map parseMessage(String json) {
-            return this.m_json_parser.parseJson(json);
-        }
-        
-        // send a message
-        private void sendMessage(String verb,String ep_name, String commandMessage) {
-            try {
-                // CoAP GET requested
-                HashMap<String,String> messageProperties = new HashMap<>();
-                messageProperties.put("coap_verb", verb);
-                
-                // create the message to send to the device
-                Message messageToSend = new Message(commandMessage);
-                messageToSend.setDeliveryAcknowledgement(DeliveryAcknowledgement.Full);
-
-                // Setting standard properties
-                messageToSend.setMessageId(java.util.UUID.randomUUID().toString());
-                Date now = new Date();
-                messageToSend.setExpiryTimeUtc(new Date(now.getTime() + 60 * 1000));
-                messageToSend.setCorrelationId(java.util.UUID.randomUUID().toString());
-                messageToSend.setUserId(java.util.UUID.randomUUID().toString());
-
-                // set the message properties
-                messageToSend.clearCustomProperties();
-                messageToSend.setProperties(messageProperties);
-
-                // send the message and its properties back through IoTEventHub
-                CompletableFuture<Void> completableFuture = serviceClient.sendAsync(ep_name, messageToSend);
-                completableFuture.get();
-            }
-            catch (UnsupportedEncodingException | InterruptedException | ExecutionException ex) {
-                System.out.println("sendMessage: Exception: " + ex.getMessage());
-            }
-        }
-        
         // send CoAP GET request for temperature
         private void dispatchTemperatureGET(String ep_name,String uri) {
             // CoAP Verb: GET
@@ -219,8 +186,13 @@ public class IoTEventHubResponder {
         }
         
         // process a CoAP GET Response
+        @SuppressWarnings("empty-statement")
         private void processGetResponse(Map response) {
+            // DEBUG
             System.out.println("GET RESPONSE: " + response);
+            
+            // Do fun and interesting stuff...
+            ;
         }
         
         // process a CoAP Observation
@@ -228,7 +200,7 @@ public class IoTEventHubResponder {
             boolean led_off_request_temp = false;
             
             // DEBUG We are processing an observation
-            System.out.println("Processing an Observation: " + observation);
+            System.out.println("Processing Observation: " + observation);
 
             // Get the path... if it is the monotonic counter resource, we will process it... 
             String path = (String)observation.get("path");
@@ -250,7 +222,10 @@ public class IoTEventHubResponder {
 
                         // turn ON
                         commandMessage = "{ \"path\":\"" + led_resource_uri + "\", \"new_value\":\"1\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
-                     }
+                    
+                        // we will issue a GET on the temperature directly (simply as an example of issuing a get())
+                        led_off_request_temp = false;
+                    }
                     else {
                         // DEBUG
                         System.out.println("processObservation: Turning LED OFF");
@@ -263,32 +238,12 @@ public class IoTEventHubResponder {
                     }
 
                     // DEBUG
-                    System.out.println("processObservation: Message Properties: " + messageProperties);
                     System.out.println("processObservation: Sending LED message: " + commandMessage + " to device: " + deviceId);
+                    
+                    // send the message
+                    this.sendMessage("put", deviceId, commandMessage);
 
-                    // create the message to send to the device
-                    Message messageToSend = new Message(commandMessage);
-                    messageToSend.setDeliveryAcknowledgement(DeliveryAcknowledgement.Full);
-
-                    // Setting standard properties
-                    messageToSend.setMessageId(java.util.UUID.randomUUID().toString());
-                    Date now = new Date();
-                    messageToSend.setExpiryTimeUtc(new Date(now.getTime() + 60 * 1000));
-                    messageToSend.setCorrelationId(java.util.UUID.randomUUID().toString());
-                    messageToSend.setUserId(java.util.UUID.randomUUID().toString());
-
-                    // set the message properties
-                    messageToSend.clearCustomProperties();
-                    messageToSend.setProperties(messageProperties);
-
-                    // send the message and its properties back through IoTEventHub
-                    CompletableFuture<Void> completableFuture = serviceClient.sendAsync(deviceId, messageToSend);
-                    completableFuture.get();
-
-                    // DEBUG
-                    System.out.println("processObservation: SENT message: " + commandMessage + " to device: " + deviceId);
-
-                    // ***** Flow processing *****
+                    // ***** NodeRED Flow processing *****
                     
                     // now do a GET on temperature if the counter value is ODD
                     if (led_off_request_temp == true) {
@@ -312,11 +267,43 @@ public class IoTEventHubResponder {
                         // Reset Counter
                         this.dispatchResetCounter(deviceId, counter_resource_uri);
                     }
-                    // ***** Flow processing *****
+                    
+                    // ***** NodeRED Flow processing *****
                 }
-                catch (NumberFormatException | UnsupportedEncodingException | InterruptedException | ExecutionException ex) {
+                catch (NumberFormatException ex) {
                     System.out.println("processObservation: Exception: " + ex.getMessage());
                 }
+            }
+        }
+        
+        // send a message
+        private void sendMessage(String verb,String ep_name, String commandMessage) {
+            try {
+                // CoAP GET requested
+                HashMap<String,String> messageProperties = new HashMap<>();
+                messageProperties.put("coap_verb", verb);
+                
+                // create the message to send to the device
+                Message messageToSend = new Message(commandMessage);
+                messageToSend.setDeliveryAcknowledgement(DeliveryAcknowledgement.Full);
+
+                // Setting standard properties
+                messageToSend.setMessageId(java.util.UUID.randomUUID().toString());
+                Date now = new Date();
+                messageToSend.setExpiryTimeUtc(new Date(now.getTime() + 60 * 1000));
+                messageToSend.setCorrelationId(java.util.UUID.randomUUID().toString());
+                messageToSend.setUserId(java.util.UUID.randomUUID().toString());
+
+                // set the message properties
+                messageToSend.clearCustomProperties();
+                messageToSend.setProperties(messageProperties);
+
+                // send the message and its properties back through IoTEventHub
+                CompletableFuture<Void> completableFuture = serviceClient.sendAsync(ep_name, messageToSend);
+                completableFuture.get();
+            }
+            catch (UnsupportedEncodingException | InterruptedException | ExecutionException ex) {
+                System.out.println("sendMessage: Exception: " + ex.getMessage());
             }
         }
         
@@ -325,34 +312,33 @@ public class IoTEventHubResponder {
             // parse the message
             Map parsed = this.parseMessage(message);
             
-            // DEBUG
-            System.out.println("processEvent: Message: " + parsed);
-                        
+            // Get the CoAP verb
             String verb = (String)parsed.get("verb");
             if (verb != null && verb.equalsIgnoreCase("get") == true) {
-                // DEBUG We are processing a get() reply
-                System.out.println("Processing a GET RESPONSE: " + parsed);
+                // We are processing a GET response
                 this.processGetResponse(parsed);
             }
             else {
-                // DEBUG We are processing an observation
-                System.out.println("Processing an OBSERVATION: " + parsed);
+                // We are processing an observation (DEFAULT)
                 this.processObservation(parsed);
             }
         }
 
+        // parse the JSON string
+        private Map parseMessage(String json) { return this.m_json_parser.parseJson(json); }
+        
         @Override
         public void run() {
             try {
                 EventHubReceiver receiver = client.getConsumerGroup(null).createReceiver(partitionId, new EventHubEnqueueTimeFilter(now), Constants.DefaultAmqpCredits);
-                System.out.println("** Created receiver on partition " + partitionId);
+                System.out.println("Created receiver on partition " + partitionId);
                 while (!stopThread) {
-                    EventHubMessage message = EventHubMessage.parseAmqpMessage(receiver.receive(500));
+                    EventHubMessage message = EventHubMessage.parseAmqpMessage(receiver.receive(receiveSleepMS));
                     if (message != null) {
                         // DEBUG
-                        System.out.println("Received: " + partitionId + " (" + message.getOffset() + " | "
-                                + message.getSequence() + " | " + message.getEnqueuedTimestamp()
-                                + ") => " + message.getDataAsString());
+                        //System.out.println("Received: " + partitionId + " (" + message.getOffset() + " | "
+                        //        + message.getSequence() + " | " + message.getEnqueuedTimestamp()
+                        //        + ") => " + message.getDataAsString());
                         
                         // process event
                         this.processEvent(message.getDataAsString());
@@ -379,7 +365,8 @@ public class IoTEventHubResponder {
             System.out.println("Exception: " + e.getMessage());
         }
         
-        System.out.println("Starting IoTEventHubResponder. Listening for Device: " + IoTEventHubResponder.deviceId + " Resource URI: " + IoTEventHubResponder.counter_resource_uri);
+        // DEBUG Announcement
+        System.out.println("Starting IoTEventHubResponder. Listening for Device: " + IoTEventHubResponder.deviceId);
 
         IoTEventHubResponder.openServiceClient();
         IoTEventHubResponder.openFeedbackReceiver();
