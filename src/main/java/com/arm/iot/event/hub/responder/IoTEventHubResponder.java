@@ -40,11 +40,11 @@ public class IoTEventHubResponder {
     private static long now = System.currentTimeMillis();
   
     // Configuration/Connection Parameters - you need to change these
-    public static final String connectionString = "[Enter your IoTHub OWNER SAS Token here]";
-    public static final String deviceId = "[mbed Connector Endpoint Name goes here]";
-    public static final String policyKey = "[SharedAccessKey part of your OWNER SAS Token goes here... you leave off the SharedAccessKey= though though...]";
-    public static final String namespace = "[Your IoTHub namespace value]";
-    public static final String name = "[Your IoTHub qualified name goes here]";
+    public static final String connectionString = "HostName=DevelopmentHub.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
+    public static final String deviceId = "cc69e7c5-c24f-43cf-8365-8d23bb01c707";
+    public static final String policyKey = "bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
+    public static final String namespace = "ihsuprodblres008dednamespace";
+    public static final String name = "iothub-ehub-developmen-29279-2e150a3f04";
     
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
@@ -128,16 +128,13 @@ public class IoTEventHubResponder {
             return this.m_json_parser.parseJson(json);
         }
         
-        // send CoAP GET request for temperature
-        private void dispatchTemperatureGET() {
+        // send a message
+        private void sendMessage(String verb,String ep_name, String commandMessage) {
             try {
                 // CoAP GET requested
                 HashMap<String,String> messageProperties = new HashMap<>();
-                messageProperties.put("coap_verb", "get");
+                messageProperties.put("coap_verb", verb);
                 
-                // GET Temperature JSON message for the bridge
-                String commandMessage = "{ \"path\":\"" + temp_resource_uri + "\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
-
                 // create the message to send to the device
                 Message messageToSend = new Message(commandMessage);
                 messageToSend.setDeliveryAcknowledgement(DeliveryAcknowledgement.Full);
@@ -154,12 +151,70 @@ public class IoTEventHubResponder {
                 messageToSend.setProperties(messageProperties);
 
                 // send the message and its properties back through IoTEventHub
-                CompletableFuture<Void> completableFuture = serviceClient.sendAsync(deviceId, messageToSend);
+                CompletableFuture<Void> completableFuture = serviceClient.sendAsync(ep_name, messageToSend);
                 completableFuture.get();
             }
-            catch (Exception ex) {
-                System.out.println("dispatchTemperatureGET: Exception: " + ex.getMessage());
+            catch (UnsupportedEncodingException | InterruptedException | ExecutionException ex) {
+                System.out.println("sendMessage: Exception: " + ex.getMessage());
             }
+        }
+        
+        // send CoAP GET request for temperature
+        private void dispatchTemperatureGET(String ep_name,String uri) {
+            // CoAP Verb: GET
+            String coap_verb = "get";
+            
+            // Temperature JSON message for the bridge to parse...
+            String message = "{ \"path\":\"" + uri + "\", \"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\" }";
+
+            // Send this message
+            this.sendMessage(coap_verb,ep_name,message);
+        }
+        
+        // send CoAP POST to add 10 to the counter: "Add 10 to Counter"
+        private void dispatchAdd10ToCounter(String ep_name,String uri) {
+            // DEBUG Add 10 to Counter
+            System.out.println("Add 10 to Counter: " + ep_name + " URI: " + uri);
+            
+            // CoAP Verb: POST
+            String coap_verb = "post";
+            
+            // Add 10 to Counter JSON message for bridge to parse
+            String message = "{ \"path\":\"" + uri + "\",\"new_value\": \"10\",\"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\" }";
+
+            // Send this message
+            this.sendMessage(coap_verb,ep_name,message);
+        }
+        
+        // send CoAP PUT to set the counter to 8: "Set Counter to 8"
+        private void dispatchSetCounterTo8(String ep_name,String uri) { 
+            // DEBUG Set Counter to 8
+            System.out.println("Setting Counter to 8: " + ep_name + " URI: " + uri);
+            
+            // Set Counter to 8
+            this.dispatchSetCounterToValue(ep_name, uri, "8"); 
+        }
+        
+        // send CoAP PUT to set the counter to : "Reset Counter"
+        private void dispatchResetCounter(String ep_name,String uri) { 
+            // DEBUG Reset Counter
+            System.out.println("Resetting Counter: " + ep_name + " URI: " + uri);
+            
+            // Set Counter to 0
+            this.dispatchSetCounterToValue(ep_name, uri, "0"); 
+        }
+        
+        // send CoAP PUT to set the counter to a new value
+        private void dispatchSetCounterToValue(String ep_name,String uri,String value) {
+            // CoAP Verb: GET
+            String coap_verb = "put";
+            
+            // Temperature JSON message for the bridge to parse...
+            // { "path":"/123/0/4567", "new_value":"8", "ep":"cc69e7c5-c24f-43cf-8365-8d23bb01c707", "coap_verb":"put" }
+            String message = "{ \"path\":\"" + uri + "\",\"new_value\": \"" + value + "\",\"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\" }";
+
+            // Send this message
+            this.sendMessage(coap_verb,ep_name,message);
         }
         
         // process a CoAP GET Response
@@ -169,7 +224,7 @@ public class IoTEventHubResponder {
         
         // process a CoAP Observation
         private void processObservation(Map observation) {
-            boolean do_get = false;
+            boolean led_off_request_temp = false;
             
             // DEBUG We are processing an observation
             System.out.println("Processing an Observation: " + observation);
@@ -203,7 +258,7 @@ public class IoTEventHubResponder {
                         commandMessage = "{ \"path\":\"" + led_resource_uri + "\", \"new_value\":\"0\", \"ep\":\"" + deviceId + "\", \"coap_verb\": \""+ messageProperties.get("coap_verb") + "\" }";
 
                         // we will issue a GET on the temperature directly (simply as an example of issuing a get())
-                        do_get = true;
+                        led_off_request_temp = true;
                     }
 
                     // DEBUG
@@ -232,12 +287,31 @@ public class IoTEventHubResponder {
                     // DEBUG
                     System.out.println("processObservation: SENT message: " + commandMessage + " to device: " + deviceId);
 
-                    // now do a GET on temperature if requested
-                    if (do_get == true) {
+                    // ***** Flow processing *****
+                    
+                    // now do a GET on temperature if the counter value is ODD
+                    if (led_off_request_temp == true) {
                         // DEBUG
                         System.out.println("processObservation: Dispatching CoAP GET of Temperature resource from device: " + deviceId);
-                        this.dispatchTemperatureGET();
+                        this.dispatchTemperatureGET(deviceId,temp_resource_uri);
                     }
+                    
+                    // Check the counter value
+                    if (counter  == 5) {
+                        // Set Counter Value to 8
+                        this.dispatchSetCounterTo8(deviceId, counter_resource_uri);
+                    }
+                    
+                    if (counter == 10) {
+                        // Add 10 to Counter
+                        this.dispatchAdd10ToCounter(deviceId, counter_resource_uri);
+                    }
+                    
+                    if (counter > 22) {
+                        // Reset Counter
+                        this.dispatchResetCounter(deviceId, counter_resource_uri);
+                    }
+                    // ***** Flow processing *****
                 }
                 catch (NumberFormatException | UnsupportedEncodingException | InterruptedException | ExecutionException ex) {
                     System.out.println("processObservation: Exception: " + ex.getMessage());
