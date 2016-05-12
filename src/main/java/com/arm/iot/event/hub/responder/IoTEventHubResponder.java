@@ -40,18 +40,27 @@ public class IoTEventHubResponder {
     private static EventHubClient client;
     private static long now = System.currentTimeMillis();
   
-    // Configuration/Connection Parameters - you need to change these
-    public static final String connectionString = "HostName=DevelopmentHub.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
-    public static final String deviceId = "cc69e7c5-c24f-43cf-8365-8d23bb01c707";
-    public static final String policyKey = "bcr2LvbLWgk68gxhHBAV6+awJgFB7LplCzfKI1duKVI=";
-    public static final String namespace = "ihsuprodblres008dednamespace";
-    public static final String name = "iothub-ehub-developmen-29279-2e150a3f04";
+     // Configuration/Connection Parameters - you need to change these
+    public static final String connectionString = "[Enter your IoTHub OWNER SAS Token here]";
+    public static final String deviceId = "[mbed Connector Endpoint Name goes here]";
+    public static final String policyKey = "[SharedAccessKey part of your OWNER SAS Token goes here... you leave off the SharedAccessKey= though though...]";
+    public static final String namespace = "[Your IoTHub namespace value]";
+    public static final String name = "[Your IoTHub qualified name goes here]";
     
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
     public static final String led_resource_uri = "/311/0/5850";
     public static final String temp_resource_uri = "/303/0/5700";
+    
+    // Device Management URIs
+    public static final String dm_passphrase = "arm1234";                           // Passphrase for permitting Actions... see main.cpp in endpoint
+    public static final String dm_firmware_version_resource_uri = "/3/0/3";         // Firmware Version
+    public static final String dm_deregister_action_resource_uri = "/3/0/86";       // Action: De-Register device
+    public static final String dm_reboot_action_resource_uri = "/3/0/7";            // Action: Reboot device
+    public static final String dm_reset_action_resource_uri = "/3/0/8";             // Action: Reset device
+    public static final String dm_fota_action_resource_uri = "/3/0/777";            // Action: FOTA device
+    public static final String dm_fota_data = "";                                   // FUTURE: FOTA manifest/image
     
     // sleep time between receives (MS)
     public static final int receiveSleepMS = 1000;      // 1 second
@@ -127,8 +136,8 @@ public class IoTEventHubResponder {
             this.m_json_parser = this.m_json_factory.newJsonParser();
         }
         
-        // send CoAP GET request for temperature
-        private void dispatchTemperatureGET(String ep_name,String uri) {
+        // send CoAP GET request for a given URL
+        private void dispatchGETRequest(String ep_name,String uri) {
             // CoAP Verb: GET
             String coap_verb = "get";
             
@@ -137,6 +146,54 @@ public class IoTEventHubResponder {
 
             // Send this message
             this.sendMessage(coap_verb,ep_name,message);
+        }
+        
+         // send CoAP POST command to the special device management resources to invoke actions
+        private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase) {
+            // default CoAP verb is POST
+            this.dispatchDeviceManagementAction(ep_name, uri, passphrase, "post");
+        }
+        
+        // send CoAP POST command to the special device management resources to invoke actions
+        private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase,String coap_verb) {
+            // DEBUG Add 10 to Counter
+            System.out.println("Invoking (" + coap_verb + ") Action to: " + ep_name + " URI: " + uri);
+            
+            // Add 10 to Counter JSON message for bridge to parse (new_value is the passphrase to permit the action)
+            String message = "{ \"path\":\"" + uri + "\",\"new_value\": \""+ passphrase +"\",\"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\" }";
+
+            // Send this message
+            this.sendMessage(coap_verb,ep_name,message);
+        }
+        
+        // Device Management: De-Register the device
+        private void deregisterDevice(String ep_name,String passphrase) {
+            this.dispatchDeviceManagementAction(ep_name,dm_deregister_action_resource_uri,passphrase);
+        }
+        
+        // Device Management: Reboot the device
+        private void rebootDevice(String ep_name,String passphrase) {
+            this.dispatchDeviceManagementAction(ep_name,dm_reboot_action_resource_uri,passphrase);
+        }
+        
+        // Device Management: Reset the device
+        private void resetDevice(String ep_name,String passphrase) {
+            this.dispatchDeviceManagementAction(ep_name,dm_reset_action_resource_uri,passphrase);
+        }
+        
+        // Device Management: Get the current Firmware version from the device
+        private void getDeviceFirmwareVersion(String ep_name) {
+            // dispatch the GET.. answer will come back via observation/notification response...
+            this.dispatchGETRequest(ep_name,dm_firmware_version_resource_uri);
+        }
+        
+        // Device Management: FOTA the device
+        private void fotaDevice(String ep_name,String fota_manifest,String passphrase) {
+            // first we PUT the manifest (via CoAP PUT)
+            this.dispatchDeviceManagementAction(ep_name,dm_fota_action_resource_uri,fota_manifest,"put");
+            
+            // then we POST to invoke the FOTA action using the passphrase to permit the action
+            this.dispatchDeviceManagementAction(ep_name,dm_fota_action_resource_uri,passphrase);
         }
         
         // send CoAP POST to add 10 to the counter: "Add 10 to Counter"
@@ -249,13 +306,26 @@ public class IoTEventHubResponder {
                     if (led_off_request_temp == true) {
                         // DEBUG
                         System.out.println("processObservation: Dispatching CoAP GET of Temperature resource from device: " + deviceId);
-                        this.dispatchTemperatureGET(deviceId,temp_resource_uri);
+                        this.dispatchGETRequest(deviceId,temp_resource_uri);
+                    }
+                    
+                    // Get the Firmware Version
+                    if (counter == 3) {
+                        // DEBUG
+                        System.out.println("processObservation: Dispatching CoAP GET for Firmware Version of the device: " + deviceId);
+                        this.getDeviceFirmwareVersion(deviceId);
                     }
                     
                     // Check the counter value
                     if (counter  == 5) {
                         // Set Counter Value to 8
                         this.dispatchSetCounterTo8(deviceId, counter_resource_uri);
+                        
+                        // TEST: Data Management actions 
+                        //this.deregisterDevice(deviceId, dm_passphrase);
+                        //this.rebootDevice(deviceId, dm_passphrase);
+                        //this.resetDevice(deviceId, dm_passphrase);
+                        //this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
                     }
                     
                     if (counter == 10) {
