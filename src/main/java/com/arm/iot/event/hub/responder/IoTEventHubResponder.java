@@ -40,7 +40,7 @@ public class IoTEventHubResponder {
     private static EventHubClient client;
     private static long now = System.currentTimeMillis();
   
-     // Configuration/Connection Parameters - you need to change these
+    // Configuration/Connection Parameters - you need to change these
     public static final String connectionString = "[Enter your IoTHub OWNER SAS Token here]";
     public static final String deviceId = "[mbed Connector Endpoint Name goes here]";
     public static final String policyKey = "[SharedAccessKey part of your OWNER SAS Token goes here... you leave off the SharedAccessKey= though though...]";
@@ -336,6 +336,12 @@ public class IoTEventHubResponder {
                     if (counter > 22) {
                         // Reset Counter
                         this.dispatchResetCounter(deviceId, counter_resource_uri);
+                        
+                        // TEST: Data Management actions 
+                        this.deregisterDevice(deviceId, dm_passphrase);
+                        //this.rebootDevice(deviceId, dm_passphrase);
+                        //this.resetDevice(deviceId, dm_passphrase);
+                        //this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
                     }
                     
                     // ***** NodeRED Flow processing *****
