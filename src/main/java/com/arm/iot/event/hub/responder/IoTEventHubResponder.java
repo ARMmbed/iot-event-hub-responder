@@ -192,8 +192,7 @@ public class IoTEventHubResponder {
             // first we PUT the manifest (via CoAP PUT)
             this.dispatchDeviceManagementAction(ep_name,dm_fota_action_resource_uri,fota_manifest,"put");
             
-            // then we POST to invoke the FOTA action using the passphrase to permit the action
-            this.dispatchDeviceManagementAction(ep_name,dm_fota_action_resource_uri,passphrase);
+            // we now wait for the PUT to complete... then we will POST to execute... see processPutResponse()
         }
         
         // send CoAP POST to add 10 to the counter: "Add 10 to Counter"
@@ -250,6 +249,23 @@ public class IoTEventHubResponder {
             
             // Do fun and interesting stuff...
             ;
+        }
+        
+        // process a CoAP PUT Response
+        @SuppressWarnings("empty-statement")
+        private void processPutResponse(Map response) {
+            // DEBUG
+            System.out.println("PUT RESPONSE: " + response);
+
+            // Check for FOTA invocation...
+            String uri = (String)response.get("path");
+            if (uri != null && uri.contains(dm_firmware_version_resource_uri)) {
+                // DEBUG
+                System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
+                
+                // then we POST to invoke the FOTA action using the passphrase to permit the action
+                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase);
+            }
         }
         
         // process a CoAP Observation
@@ -393,6 +409,10 @@ public class IoTEventHubResponder {
             if (verb != null && verb.equalsIgnoreCase("get") == true) {
                 // We are processing a GET response
                 this.processGetResponse(parsed);
+            }
+            else if (verb != null && verb.equalsIgnoreCase("put") == true) {
+                // We are processing a PUT response
+                this.processPutResponse(parsed);
             }
             else {
                 // We are processing an observation (DEFAULT)
