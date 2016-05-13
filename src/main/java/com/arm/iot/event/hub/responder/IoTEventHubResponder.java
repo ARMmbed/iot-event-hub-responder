@@ -54,13 +54,13 @@ public class IoTEventHubResponder {
     public static final String temp_resource_uri = "/303/0/5700";
     
     // Device Management URIs
-    public static final String dm_passphrase = "arm1234";                           // Passphrase for permitting Actions... see main.cpp in endpoint
-    public static final String dm_firmware_version_resource_uri = "/3/0/3";         // Firmware Version
-    public static final String dm_deregister_action_resource_uri = "/3/0/86";       // Action: De-Register device
-    public static final String dm_reboot_action_resource_uri = "/3/0/7";            // Action: Reboot device
-    public static final String dm_reset_action_resource_uri = "/3/0/8";             // Action: Reset device
-    public static final String dm_fota_action_resource_uri = "/3/0/777";            // Action: FOTA device
-    public static final String dm_fota_data = "";                                   // FUTURE: FOTA manifest/image
+    public static final String dm_passphrase = "arm1234";                                               // Passphrase for permitting Actions... see main.cpp in endpoint
+    public static final String dm_firmware_version_resource_uri = "/3/0/3";                             // Firmware Version
+    public static final String dm_deregister_action_resource_uri = "/3/0/86";                           // Action: De-Register device
+    public static final String dm_reboot_action_resource_uri = "/3/0/7";                                // Action: Reboot device
+    public static final String dm_reset_action_resource_uri = "/3/0/8";                                 // Action: Reset device
+    public static final String dm_fota_action_resource_uri = "/3/0/777";                                // Action: FOTA device
+    public static final String dm_fota_data = "{\"key\":\"123\",\"sig\":\"456\",\"image\":\"fw.bin\"}"; // FUTURE: FOTA manifest/image
     
     // sleep time between receives (MS)
     public static final int receiveSleepMS = 1000;      // 1 second
@@ -341,7 +341,7 @@ public class IoTEventHubResponder {
                         //this.deregisterDevice(deviceId, dm_passphrase);
                         //this.rebootDevice(deviceId, dm_passphrase);
                         //this.resetDevice(deviceId, dm_passphrase);
-                        //this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
+                        this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
                     }
                     
                     if (counter == 10) {
