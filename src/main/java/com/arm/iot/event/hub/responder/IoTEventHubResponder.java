@@ -402,7 +402,7 @@ public class IoTEventHubResponder {
         // process an input event
         private void processEvent(String message) {
             // parse the message
-            Map parsed = this.parseMessage(message);
+            Map parsed = this.parseMessage(message.replace("\"\"","\" \""));    // jsonParser has issues... 
             
             // Get the CoAP verb
             String verb = (String)parsed.get("verb");
