@@ -50,6 +50,7 @@ public class IoTEventHubResponder {
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
+    public static final String accelerometer_resource_uri = "/888/0/7700";
     public static final String led_resource_uri = "/311/0/5850";
     public static final String temp_resource_uri = "/303/0/5700";
     
@@ -259,7 +260,7 @@ public class IoTEventHubResponder {
 
             // Check for FOTA invocation...
             String uri = (String)response.get("path");
-            if (uri != null && uri.contains(dm_firmware_version_resource_uri)) {
+            if (uri != null && uri.equalsIgnoreCase(dm_firmware_version_resource_uri)) {
                 // DEBUG
                 System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
                 
@@ -277,12 +278,25 @@ public class IoTEventHubResponder {
 
             // Get the path... if it is the monotonic counter resource, we will process it... 
             String path = (String)observation.get("path");
+            if (path != null && path.contentEquals(IoTEventHubResponder.accelerometer_resource_uri) == true) {
+                try {
+                    // Get the Accelerometer JSON object
+                    Map accel_json = (Map)observation.get("value");
+                    
+                    // DEBUG
+                    System.out.println("processObservation: ACCEL: " + accel_json);
+                }
+                catch (Exception ex) {
+                    System.out.println("processObservation: Exception: " + ex.getMessage());
+                }
+            }
+            
             if (path != null && path.contentEquals(IoTEventHubResponder.counter_resource_uri) == true) {
                 try {
-                    // get the monotonic counter value
-                    String value = (String)observation.get("value");
-                    Integer counter = Integer.parseInt(value) ;
-
+                    // get the monotonic counter value (an integer) (quick-json has an issue of always using Strings...) 
+                    String counter_str = (String)observation.get("value");
+                    Integer counter = Integer.parseInt(counter_str);
+                   
                     // CoAP put() verb will be used
                     HashMap<String,String> messageProperties = new HashMap<>();
                     messageProperties.put("coap_verb", "put");
