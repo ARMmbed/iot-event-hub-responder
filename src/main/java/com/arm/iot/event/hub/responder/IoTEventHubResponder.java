@@ -41,11 +41,12 @@ public class IoTEventHubResponder {
     private static long now = System.currentTimeMillis();
   
     // Configuration/Connection Parameters - you need to change these
-    public static final String connectionString = "[Enter your IoTHub OWNER SAS Token here]";
+    public static final String connectionString = "[Enter your IoTHub OWNER Connection String here]";
     public static final String deviceId = "[mbed Connector Endpoint Name goes here]";
     public static final String policyKey = "[SharedAccessKey part of your OWNER SAS Token goes here... you leave off the SharedAccessKey= though though...]";
     public static final String namespace = "[Your IoTHub namespace value]";
     public static final String name = "[Your IoTHub qualified name goes here]";
+    public static final String dm_fota_data = "{}";                                         //FOTA manifest/image
     
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
@@ -60,8 +61,8 @@ public class IoTEventHubResponder {
     public static final String dm_deregister_action_resource_uri = "/3/0/86";                           // Action: De-Register device
     public static final String dm_reboot_action_resource_uri = "/3/0/7";                                // Action: Reboot device
     public static final String dm_reset_action_resource_uri = "/3/0/8";                                 // Action: Reset device
-    public static final String dm_fota_action_resource_uri = "/3/0/777";                                // Action: FOTA device
-    public static final String dm_fota_data = "{\"key\":\"123\",\"sig\":\"456\",\"image\":\"fw.bin\"}"; // FUTURE: FOTA manifest/image
+    public static final String dm_fota_manifest_resource_uri = "/5/0/1";                                // Manifest: FOTA URL
+    public static final String dm_fota_action_resource_uri = "/5/0/2";                                  // Action: FOTA device
     
     // sleep time between receives (MS)
     public static final int receiveSleepMS = 1000;      // 1 second
@@ -188,12 +189,25 @@ public class IoTEventHubResponder {
             this.dispatchGETRequest(ep_name,dm_firmware_version_resource_uri);
         }
         
-        // Device Management: FOTA the device
-        private void fotaDevice(String ep_name,String fota_manifest,String passphrase) {
+        // Device Management: FOTA the device: set manifest
+        private void fotaSetManifest(String ep_name,String fota_manifest,String passphrase) {
             // first we PUT the manifest (via CoAP PUT)
-            this.dispatchDeviceManagementAction(ep_name,dm_fota_action_resource_uri,fota_manifest,"put");
+            this.dispatchDeviceManagementAction(ep_name,dm_fota_manifest_resource_uri,fota_manifest,"put");
             
             // we now wait for the PUT to complete... then we will POST to execute... see processPutResponse()
+        }
+        
+        // Device Management: FOTA the device: invoke
+        private void fotaInvokeFOTA(Map response) {
+        // Check for FOTA invocation readiness...
+            String uri = (String)response.get("path");
+            if (uri != null && uri.equalsIgnoreCase(dm_fota_manifest_resource_uri)) {
+                // DEBUG
+                System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
+                
+                // then we POST to invoke the FOTA action using the passphrase to permit the action
+                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase);
+            }
         }
         
         // send CoAP POST to add 10 to the counter: "Add 10 to Counter"
@@ -258,15 +272,8 @@ public class IoTEventHubResponder {
             // DEBUG
             System.out.println("PUT RESPONSE: " + response);
 
-            // Check for FOTA invocation...
-            String uri = (String)response.get("path");
-            if (uri != null && uri.equalsIgnoreCase(dm_firmware_version_resource_uri)) {
-                // DEBUG
-                System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
-                
-                // then we POST to invoke the FOTA action using the passphrase to permit the action
-                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase);
-            }
+            // check and Process FOTA readiness
+            fotaInvokeFOTA(response);
         }
         
         // process a CoAP Observation
@@ -355,7 +362,7 @@ public class IoTEventHubResponder {
                         //this.deregisterDevice(deviceId, dm_passphrase);
                         //this.rebootDevice(deviceId, dm_passphrase);
                         //this.resetDevice(deviceId, dm_passphrase);
-                        this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
+                        this.fotaSetManifest(deviceId,dm_fota_data,dm_passphrase);
                     }
                     
                     if (counter == 10) {
@@ -368,10 +375,10 @@ public class IoTEventHubResponder {
                         this.dispatchResetCounter(deviceId, counter_resource_uri);
                         
                         // TEST: Data Management actions 
-                        this.deregisterDevice(deviceId, dm_passphrase);
+                        //this.deregisterDevice(deviceId, dm_passphrase);
                         //this.rebootDevice(deviceId, dm_passphrase);
                         //this.resetDevice(deviceId, dm_passphrase);
-                        //this.fotaDevice(deviceId,dm_fota_data,dm_passphrase);
+                        //this.fotaSetManifest(deviceId,dm_fota_data,dm_passphrase);
                     }
                     
                     // ***** NodeRED Flow processing *****
