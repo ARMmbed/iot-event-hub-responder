@@ -47,7 +47,7 @@ public class IoTEventHubResponder {
     public static final String namespace = "[Your IoTHub namespace value]";
     public static final String name = "[Your IoTHub qualified name goes here]";
     public static final String dm_fota_data = "{}";                                         //FOTA manifest/image
-    
+       
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
@@ -150,19 +150,31 @@ public class IoTEventHubResponder {
             this.sendMessage(coap_verb,ep_name,message);
         }
         
-         // send CoAP POST command to the special device management resources to invoke actions
+        // send CoAP POST command to the special device management resources to invoke actions
         private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase) {
             // default CoAP verb is POST
-            this.dispatchDeviceManagementAction(ep_name, uri, passphrase, "post");
+            this.dispatchDeviceManagementAction(ep_name, uri, passphrase, "post",null);
         }
         
         // send CoAP POST command to the special device management resources to invoke actions
-        private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase,String coap_verb) {
+        private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase,String options) {
+            // default CoAP verb is POST
+            this.dispatchDeviceManagementAction(ep_name, uri, passphrase, "post",options);
+        }
+        
+        // send CoAP POST command to the special device management resources to invoke actions
+        private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase,String coap_verb,String options) {
             // DEBUG Add 10 to Counter
             System.out.println("Invoking (" + coap_verb + ") Action to: " + ep_name + " URI: " + uri);
             
+            // options for the mDS/mDC rest call
+            String opts = "";
+            if (options != null && options.length() > 0) {
+                opts = ",\"options\":\"" + options + "\"";
+            }
+            
             // Add 10 to Counter JSON message for bridge to parse (new_value is the passphrase to permit the action)
-            String message = "{ \"path\":\"" + uri + "\",\"new_value\": \""+ passphrase +"\",\"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\" }";
+            String message = "{ \"path\":\"" + uri + "\",\"new_value\": \""+ passphrase +"\",\"ep\":\"" + ep_name + "\", \"coap_verb\": \""+ coap_verb + "\"" + opts + " }";
 
             // Send this message
             this.sendMessage(coap_verb,ep_name,message);
@@ -206,7 +218,7 @@ public class IoTEventHubResponder {
                 System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
                 
                 // then we POST to invoke the FOTA action using the passphrase to permit the action
-                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase);
+                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase,"noResp=true");
             }
         }
         
