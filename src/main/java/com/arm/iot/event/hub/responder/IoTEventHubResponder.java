@@ -47,7 +47,7 @@ public class IoTEventHubResponder {
     public static final String namespace = "[Your IoTHub namespace value]";
     public static final String name = "[Your IoTHub qualified name goes here]";
     public static final String dm_fota_data = "{}";                                         //FOTA manifest/image
-       
+           
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
@@ -218,7 +218,7 @@ public class IoTEventHubResponder {
                 System.out.println("Invoking FOTA(POST) for Device: " + (String)response.get("ep"));
                 
                 // then we POST to invoke the FOTA action using the passphrase to permit the action
-                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase,"noResp=true");
+                this.dispatchDeviceManagementAction((String)response.get("ep"),dm_fota_action_resource_uri,dm_passphrase,"post","noResp=true");
             }
         }
         
