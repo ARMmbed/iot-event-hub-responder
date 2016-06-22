@@ -54,7 +54,7 @@
     <dependency>
         <groupId>com.microsoft.azure.iothub.service.sdk</groupId>
         <artifactId>iothub-service-sdk</artifactId>
-        <version>1.0.4</version>
+        <version>1.0.7</version>
         <type>jar</type>
     </dependency>
     <dependency>

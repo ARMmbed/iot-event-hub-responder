@@ -47,7 +47,7 @@ public class IoTEventHubResponder {
     public static final String namespace = "[Your IoTHub namespace value]";
     public static final String name = "[Your IoTHub qualified name goes here]";
     public static final String dm_fota_data = "{}";                                         //FOTA manifest/image
-           
+
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
@@ -58,9 +58,9 @@ public class IoTEventHubResponder {
     // Device Management URIs
     public static final String dm_passphrase = "arm1234";                                               // Passphrase for permitting Actions... see main.cpp in endpoint
     public static final String dm_firmware_version_resource_uri = "/3/0/3";                             // Firmware Version
-    public static final String dm_deregister_action_resource_uri = "/3/0/86";                           // Action: De-Register device
-    public static final String dm_reboot_action_resource_uri = "/3/0/7";                                // Action: Reboot device
-    public static final String dm_reset_action_resource_uri = "/3/0/8";                                 // Action: Reset device
+    public static final String dm_deregister_action_resource_uri = "/86/0/0";                           // Action: De-Register device
+    public static final String dm_reboot_action_resource_uri = "/3/0/3";                                // Action: Reboot device
+    public static final String dm_reset_action_resource_uri = "/3/0/4";                                 // Action: Reset device
     public static final String dm_fota_manifest_resource_uri = "/5/0/1";                                // Manifest: FOTA URL
     public static final String dm_fota_action_resource_uri = "/5/0/2";                                  // Action: FOTA device
     
@@ -165,7 +165,7 @@ public class IoTEventHubResponder {
         // send CoAP POST command to the special device management resources to invoke actions
         private void dispatchDeviceManagementAction(String ep_name,String uri,String passphrase,String coap_verb,String options) {
             // DEBUG Add 10 to Counter
-            System.out.println("Invoking (" + coap_verb + ") Action to: " + ep_name + " URI: " + uri);
+            System.out.println("Invoking (" + coap_verb + ") Action to: " + ep_name + " URI: " + uri + " Options: " + options);
             
             // options for the mDS/mDC rest call
             String opts = "";
@@ -204,7 +204,7 @@ public class IoTEventHubResponder {
         // Device Management: FOTA the device: set manifest
         private void fotaSetManifest(String ep_name,String fota_manifest,String passphrase) {
             // first we PUT the manifest (via CoAP PUT)
-            this.dispatchDeviceManagementAction(ep_name,dm_fota_manifest_resource_uri,fota_manifest,"put");
+            this.dispatchDeviceManagementAction(ep_name,dm_fota_manifest_resource_uri,fota_manifest,"put",null);
             
             // we now wait for the PUT to complete... then we will POST to execute... see processPutResponse()
         }
@@ -382,13 +382,13 @@ public class IoTEventHubResponder {
                         this.dispatchAdd10ToCounter(deviceId, counter_resource_uri);
                     }
                     
-                    if (counter > 22) {
+                    if (counter > 30) {
                         // Reset Counter
                         this.dispatchResetCounter(deviceId, counter_resource_uri);
                         
                         // TEST: Data Management actions 
                         //this.deregisterDevice(deviceId, dm_passphrase);
-                        //this.rebootDevice(deviceId, dm_passphrase);
+                        this.rebootDevice(deviceId, dm_passphrase);
                         //this.resetDevice(deviceId, dm_passphrase);
                         //this.fotaSetManifest(deviceId,dm_fota_data,dm_passphrase);
                     }
