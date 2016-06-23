@@ -47,7 +47,7 @@ public class IoTEventHubResponder {
     public static final String namespace = "[Your IoTHub namespace value]";
     public static final String name = "[Your IoTHub qualified name goes here]";
     public static final String dm_fota_data = "{}";                                         //FOTA manifest/image
-
+    
     // You should not have to change these... 
     public static final String policyName = "iothubowner";
     public static final String counter_resource_uri = "/123/0/4567";
